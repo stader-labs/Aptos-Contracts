@@ -1,4 +1,4 @@
-module AptosXCoinType::aptosx_coin {
+module aptosXCoinType::aptosx_coin {
     use std::string;
     use std::error;
     use std::signer;
@@ -52,23 +52,56 @@ module AptosXCoinType::aptosx_coin {
     ) acquires Capabilities {
         let user_addr = signer::address_of(user);
 
-        let module_owner_addr = @AptosXCoinType;
+        let mod_account = @aptosXCoinType;
         assert!(
-            exists<Capabilities>(module_owner_addr),
+            exists<Capabilities>(mod_account),
             error::not_found(ENO_CAPABILITIES),
         );
 
         // Get AptosCoin
-        coin::transfer<AptosCoin>(user, module_owner_addr, amount);
+        coin::transfer<AptosCoin>(user, mod_account, amount);
         
 
         // Mint Aptosx
-        let capabilities = borrow_global<Capabilities>(module_owner_addr);
+        let capabilities = borrow_global<Capabilities>(mod_account);
         let coins_minted = coin::mint(amount, &capabilities.mint_cap);
         coin::deposit(user_addr, coins_minted);
     }
 
     public entry fun register(account: &signer) {
         coins::register<AptosXCoin>(account);
+    }
+
+    //
+    // Tests
+    //
+    #[test_only]
+    use aptos_framework::aggregator_factory;
+
+
+    #[test(source = @0xa11ce, mod_account = @0xCAFE)]
+    public entry fun test_end_to_end(
+        source: signer,
+        mod_account: signer
+    )  {
+        let source_addr = signer::address_of(&source);
+        aptos_framework::account::create_account(source_addr);
+        // aggregator_factory::initialize_aggregator_factory_for_test(&mod_account);
+
+        // initialize(
+        //     &mod_account,
+        //     b"Fake Money",
+        //     b"FMD",
+        //     10,
+        //     true
+        // );
+        // assert!(coin::is_coin_initialized<AptosXCoin>(), 0);
+
+        // coin::register_for_test<AptosXCoin>(&mod_account);
+        // register(&source);
+        // register(&destination);
+
+        // assert!(coin::balance<AptosXCoin>(source_addr) == 50, 1);
+        // assert!(coin::balance<AptosXCoin>(destination_addr) == 10, 2);
     }
 }
