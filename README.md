@@ -4,4 +4,8 @@
 
     * `aptos move compile --package-dir ./contract --named-addresses AptosXCoinType=0x42`
 
-1. initialize aptosXCoin
+# Current flow:
+
+1. Stader initialize aptosXCoin
+2. User register AptosX
+3. User deposit Aptoscoin => stader mint AptosX

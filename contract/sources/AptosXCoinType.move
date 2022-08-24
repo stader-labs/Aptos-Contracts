@@ -46,24 +46,6 @@ module AptosXCoinType::aptosx_coin {
         });
     }
 
-        /// Create new coins `CoinType` and deposit them into dst_addr's account.
-    public entry fun mint(
-        account: &signer,
-        dst_addr: address,
-        amount: u64,
-    ) acquires Capabilities {
-        let account_addr = signer::address_of(account);
-
-        assert!(
-            exists<Capabilities>(account_addr),
-            error::not_found(ENO_CAPABILITIES),
-        );
-
-        let capabilities = borrow_global<Capabilities>(account_addr);
-        let coins_minted = coin::mint(amount, &capabilities.mint_cap);
-        coin::deposit(dst_addr, coins_minted);
-    }
-
     public entry fun deposit(
         user: &signer,
         amount: u64,
