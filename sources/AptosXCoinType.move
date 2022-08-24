@@ -5,7 +5,7 @@ module aptosXCoinType::aptosx_coin {
 
     use aptos_framework::coin::{Self, BurnCapability, FreezeCapability, MintCapability};
     use aptos_framework::coins;
-    use aptos_framework::aptos_coin::AptosCoin;
+    // use aptos_framework::aptos_coin::AptosCoin;
 
 
     const ENO_CAPABILITIES: u64 = 1;
@@ -59,7 +59,7 @@ module aptosXCoinType::aptosx_coin {
         );
 
         // Get AptosCoin
-        coin::transfer<AptosCoin>(user, mod_account, amount);
+        // coin::transfer<AptosCoin>(user, mod_account, amount);
         
 
         // Mint Aptosx
@@ -75,33 +75,34 @@ module aptosXCoinType::aptosx_coin {
     //
     // Tests
     //
-    #[test_only]
-    use aptos_framework::aggregator_factory;
 
 
     #[test(source = @0xa11ce, mod_account = @0xCAFE)]
     public entry fun test_end_to_end(
         source: signer,
         mod_account: signer
-    )  {
+    ) acquires Capabilities {
         let source_addr = signer::address_of(&source);
+        let mod_adr = signer::address_of(&mod_account);
         aptos_framework::account::create_account(source_addr);
-        // aggregator_factory::initialize_aggregator_factory_for_test(&mod_account);
 
-        // initialize(
-        //     &mod_account,
-        //     b"Fake Money",
-        //     b"FMD",
-        //     10,
-        //     true
-        // );
-        // assert!(coin::is_coin_initialized<AptosXCoin>(), 0);
+        initialize(
+            &mod_account,
+            b"AptosX Liquid",
+            b"APTX",
+            10,
+            true
+        );
+        assert!(coin::is_coin_initialized<AptosXCoin>(), 0);
 
-        // coin::register_for_test<AptosXCoin>(&mod_account);
-        // register(&source);
-        // register(&destination);
+        coin::register_for_test<AptosXCoin>(&mod_account);
+        coin::register_for_test<AptosXCoin>(&source);
 
-        // assert!(coin::balance<AptosXCoin>(source_addr) == 50, 1);
-        // assert!(coin::balance<AptosXCoin>(destination_addr) == 10, 2);
+        assert!(coin::balance<AptosXCoin>(source_addr) == 0, 1);
+        assert!(coin::balance<AptosXCoin>(mod_adr) == 0, 2);
+
+        deposit(&source, 10);
+
+        assert!(coin::balance<AptosXCoin>(source_addr) == 10, 3);
     }
 }
