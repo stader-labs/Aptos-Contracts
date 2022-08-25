@@ -6,9 +6,19 @@ module aptosXCoinType::aptosx_coin {
     use aptos_framework::coin::{Self, BurnCapability, FreezeCapability, MintCapability};
     use aptos_framework::coins;
     use aptos_framework::aptos_coin::{Self};
+    // use aptos_framework::coin::CoinStore;
+
+    const EINVALID_BALANCE: u64 = 0;
+    const EACCOUNT_DOESNT_EXIST: u64 = 1;
+    const ENO_CAPABILITIES: u64 = 3;
 
 
-    const ENO_CAPABILITIES: u64 = 1;
+    use aptos_framework::account;
+    struct StakeInfo has key, store, drop {
+        amount: u64,
+        staker_resource: address,
+        signer_cap: account::SignerCapability
+    }
 
     //
     // Data structures
@@ -46,26 +56,59 @@ module aptosXCoinType::aptosx_coin {
         });
     }
 
-    public entry fun deposit(
-        user: &signer,
-        amount: u64,
-    ) acquires Capabilities {
-        let user_addr = signer::address_of(user);
+    public entry fun stake(staker: &signer, amount: u64) acquires StakeInfo, Capabilities {
+        let staker_addr = signer::address_of(staker);
+        let staker_resource = if (!exists<StakeInfo>(staker_addr)) {
+            let (resource, signer_cap) = account::create_resource_account(staker, x"01");
+            let staker_resource = signer::address_of(&resource);
+            coins::register<aptos_coin::AptosCoin>(&resource);
+            let stake_info = StakeInfo {
+                amount: 0, 
+                staker_resource, 
+                signer_cap
+            };
+            move_to<StakeInfo>(staker, stake_info);
+            staker_resource
+        } else {
+            borrow_global<StakeInfo>(staker_addr).staker_resource
+        };
+        let stake_info = borrow_global_mut<StakeInfo>(staker_addr);
+        coin::transfer<aptos_coin::AptosCoin>(staker, staker_resource, amount);
+        stake_info.amount = stake_info.amount + amount;
 
+
+        // Mint Aptosx
         let mod_account = @aptosXCoinType;
         assert!(
             exists<Capabilities>(mod_account),
             error::not_found(ENO_CAPABILITIES),
         );
-
-        // Get AptosCoin
-        coin::transfer<aptos_coin::AptosCoin>(user, mod_account, amount);
-        
-
-        // Mint Aptosx
         let capabilities = borrow_global<Capabilities>(mod_account);
         let coins_minted = coin::mint(amount, &capabilities.mint_cap);
-        coin::deposit(user_addr, coins_minted);
+        coin::deposit(staker_addr, coins_minted);
+    }
+
+    public entry fun unstake(staker: &signer, amount: u64) acquires StakeInfo, Capabilities {
+        let staker_addr = signer::address_of(staker);
+        assert!(exists<StakeInfo>(staker_addr), EACCOUNT_DOESNT_EXIST);
+
+        let stake_info = borrow_global_mut<StakeInfo>(staker_addr);
+
+        // Transfer AptosCoin to user
+        let resource_account = account::create_signer_with_capability(&stake_info.signer_cap);
+        coin::transfer<aptos_coin::AptosCoin>(&resource_account, staker_addr, stake_info.amount);
+        stake_info.amount = stake_info.amount - amount;
+
+
+        // Burn aptosx
+        let coin = coin::withdraw<AptosXCoin>(staker, amount);
+        let mod_account = @aptosXCoinType;
+        assert!(
+            exists<Capabilities>(mod_account),
+            error::not_found(ENO_CAPABILITIES),
+        );
+        let capabilities = borrow_global<Capabilities>(mod_account);
+        coin::burn<AptosXCoin>(coin, &capabilities.burn_cap);
     }
 
     public entry fun register(account: &signer) {
@@ -75,15 +118,15 @@ module aptosXCoinType::aptosx_coin {
     //
     // Tests
     //
-    #[test(source = @0xa11ce, mod_account = @0xCAFE, core = @std)]
+    #[test(staker = @0xa11ce, mod_account = @0xCAFE, core = @std)]
     public entry fun test_end_to_end(
-        source: signer,
+        staker: signer,
         mod_account: signer,
         core: signer,
-    ) acquires Capabilities {
-        let source_addr = signer::address_of(&source);
+    ) acquires Capabilities, StakeInfo {
+        let staker_addr = signer::address_of(&staker);
         let mod_adr = signer::address_of(&mod_account);
-        aptos_framework::account::create_account(source_addr);
+        aptos_framework::account::create_account(staker_addr);
 
         initialize(
             &mod_account,
@@ -99,23 +142,32 @@ module aptosXCoinType::aptosx_coin {
         coin::register_for_test<aptos_coin::AptosCoin>(&mod_account);
         // TODO: understand why this not work
         // register<AptosXCoin>(&source); 
-        coins::register<AptosXCoin>(&source);
+        coins::register<AptosXCoin>(&staker);
 
+        let amount = 100;
 
         let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(&core);
-        coin::deposit(signer::address_of(&source), coin::mint(10, &mint_cap));
+        coin::deposit(staker_addr, coin::mint(amount, &mint_cap));
 
         // Before deposit
-        assert!(coin::balance<aptos_coin::AptosCoin>(source_addr) == 10, 1);
+        assert!(coin::balance<aptos_coin::AptosCoin>(staker_addr) == amount, 1);
         assert!(coin::balance<aptos_coin::AptosCoin>(mod_adr) == 0, 2);
-        assert!(coin::balance<AptosXCoin>(source_addr) == 0, 3);
+        assert!(coin::balance<AptosXCoin>(staker_addr) == 0, 3);
 
-        deposit(&source, 10);
+        stake(&staker, amount);
 
         // After deposit
-        assert!(coin::balance<aptos_coin::AptosCoin>(mod_adr) == 10, 4);
-        assert!(coin::balance<aptos_coin::AptosCoin>(source_addr) == 0, 5);
-        assert!(coin::balance<AptosXCoin>(source_addr) == 10, 6);
+        // assert!(coin::balance<aptos_coin::AptosCoin>(mod_adr) == amount, 4);
+        assert!(coin::balance<aptos_coin::AptosCoin>(staker_addr) == 0, 5);
+        assert!(coin::balance<AptosXCoin>(staker_addr) == amount, 6);
+
+
+        unstake(&staker, amount);
+
+        // // After withdraw
+        // assert!(coin::balance<aptos_coin::AptosCoin>(mod_adr) == 0, 7);
+        assert!(coin::balance<aptos_coin::AptosCoin>(staker_addr) == amount, 8);
+        assert!(coin::balance<AptosXCoin>(staker_addr) == 0, coin::balance<AptosXCoin>(staker_addr) );
 
         coin::destroy_burn_cap(burn_cap);
         coin::destroy_mint_cap(mint_cap);
