@@ -130,7 +130,6 @@ module liquidToken::aptosx {
         core: signer,
     ) acquires Capabilities, StakeInfo {
         let staker_addr = signer::address_of(&staker);
-        let mod_adr = signer::address_of(&mod_account);
         aptos_framework::account::create_account(staker_addr);
 
         initialize(
@@ -143,17 +142,13 @@ module liquidToken::aptosx {
         assert!(coin::is_coin_initialized<AptosXCoin>(), 0);
 
 
-        coin::register_for_test<aptos_coin::AptosCoin>(&mod_account);
-
         let amount = 100;
-
         let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(&core);
         coin::deposit(staker_addr, coin::mint(amount, &mint_cap));
 
         // Before deposit
         assert!(coin::balance<aptos_coin::AptosCoin>(staker_addr) == amount, 1);
-        assert!(coin::balance<aptos_coin::AptosCoin>(mod_adr) == 0, 2);
-        assert!(!coin::is_account_registered<AptosXCoin>(staker_addr), 3);
+        assert!(coin::is_account_registered<AptosXCoin>(staker_addr) == false, 3);
 
         stake(&staker, amount);
 
