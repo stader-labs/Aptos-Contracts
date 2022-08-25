@@ -1,4 +1,4 @@
-module aptosXCoinType::aptosx_coin {
+module liquidToken::aptosx {
     use std::string;
     use std::error;
     use std::signer;
@@ -6,7 +6,6 @@ module aptosXCoinType::aptosx_coin {
     use aptos_framework::coin::{Self, BurnCapability, FreezeCapability, MintCapability};
     use aptos_framework::coins;
     use aptos_framework::aptos_coin::{Self};
-    // use aptos_framework::coin::CoinStore;
 
     const EINVALID_BALANCE: u64 = 0;
     const EACCOUNT_DOESNT_EXIST: u64 = 1;
@@ -58,6 +57,8 @@ module aptosXCoinType::aptosx_coin {
 
     public entry fun stake(staker: &signer, amount: u64) acquires StakeInfo, Capabilities {
         let staker_addr = signer::address_of(staker);
+
+        
         let staker_resource = if (!exists<StakeInfo>(staker_addr)) {
             let (resource, signer_cap) = account::create_resource_account(staker, x"01");
             let staker_resource = signer::address_of(&resource);
@@ -72,13 +73,17 @@ module aptosXCoinType::aptosx_coin {
         } else {
             borrow_global<StakeInfo>(staker_addr).staker_resource
         };
+
+        if (!coin::is_account_registered<AptosXCoin>(staker_addr)) {
+            coins::register<AptosXCoin>(staker);
+        };
         let stake_info = borrow_global_mut<StakeInfo>(staker_addr);
         coin::transfer<aptos_coin::AptosCoin>(staker, staker_resource, amount);
         stake_info.amount = stake_info.amount + amount;
 
 
         // Mint Aptosx
-        let mod_account = @aptosXCoinType;
+        let mod_account = @liquidToken;
         assert!(
             exists<Capabilities>(mod_account),
             error::not_found(ENO_CAPABILITIES),
@@ -102,7 +107,7 @@ module aptosXCoinType::aptosx_coin {
 
         // Burn aptosx
         let coin = coin::withdraw<AptosXCoin>(staker, amount);
-        let mod_account = @aptosXCoinType;
+        let mod_account = @liquidToken;
         assert!(
             exists<Capabilities>(mod_account),
             error::not_found(ENO_CAPABILITIES),
@@ -138,11 +143,7 @@ module aptosXCoinType::aptosx_coin {
         assert!(coin::is_coin_initialized<AptosXCoin>(), 0);
 
 
-        coin::register_for_test<AptosXCoin>(&mod_account);
         coin::register_for_test<aptos_coin::AptosCoin>(&mod_account);
-        // TODO: understand why this not work
-        // register<AptosXCoin>(&source); 
-        coins::register<AptosXCoin>(&staker);
 
         let amount = 100;
 
@@ -152,12 +153,11 @@ module aptosXCoinType::aptosx_coin {
         // Before deposit
         assert!(coin::balance<aptos_coin::AptosCoin>(staker_addr) == amount, 1);
         assert!(coin::balance<aptos_coin::AptosCoin>(mod_adr) == 0, 2);
-        assert!(coin::balance<AptosXCoin>(staker_addr) == 0, 3);
+        assert!(!coin::is_account_registered<AptosXCoin>(staker_addr), 3);
 
         stake(&staker, amount);
 
         // After deposit
-        // assert!(coin::balance<aptos_coin::AptosCoin>(mod_adr) == amount, 4);
         assert!(coin::balance<aptos_coin::AptosCoin>(staker_addr) == 0, 5);
         assert!(coin::balance<AptosXCoin>(staker_addr) == amount, 6);
 
@@ -165,7 +165,6 @@ module aptosXCoinType::aptosx_coin {
         unstake(&staker, amount);
 
         // // After withdraw
-        // assert!(coin::balance<aptos_coin::AptosCoin>(mod_adr) == 0, 7);
         assert!(coin::balance<aptos_coin::AptosCoin>(staker_addr) == amount, 8);
         assert!(coin::balance<AptosXCoin>(staker_addr) == 0, coin::balance<AptosXCoin>(staker_addr) );
 

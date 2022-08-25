@@ -1,5 +1,5 @@
 [package]
-name = "aptosx"
+name = "aptosx-liquid-token"
 version = "0.0.0"
 
 [dependencies]
@@ -11,4 +11,5 @@ aptos_std = "0x1"
 aptos_framework = "0x1"
 core_resources = "0xA550C18"
 vm_reserved = "0x0"
+liquidToken = "_"
 
