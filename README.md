@@ -2,10 +2,15 @@
 
 # How to build:
 
-    * `aptos move compile --package-dir ./contract --named-addresses AptosXCoinType=0x42`
+    * make build
+
+# How to test:
+
+    * make test
+
 
 # Current flow:
 
 1. Stader initialize aptosXCoin
-2. User register AptosX
-3. User deposit Aptoscoin => stader mint AptosX
+2. User stake Aptoscoin => stader mint AptosX
+3. User unstake => user burn AptosX, stader transfer back AptosCoins
