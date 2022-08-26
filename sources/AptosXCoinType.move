@@ -16,12 +16,12 @@ module liquidToken::aptosx {
     use aptos_framework::account;
 
     // every user stake have this resource
-    struct UserStakeInfo has key, store {
+    struct UserStakeInfo has key {
         amount: u64,
     }
 
     // One stake vault for all user, used for recieve Aptoscoin
-    struct StakeVault has key, store {
+    struct StakeVault has key {
         resource_addr: address,
         signer_cap: account::SignerCapability
     }
