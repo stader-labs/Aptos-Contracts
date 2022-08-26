@@ -2,6 +2,7 @@ module liquidToken::aptosx {
     use std::string;
     use std::error;
     use std::signer;
+    use std::option::{Self };
 
     use aptos_framework::coin::{Self, BurnCapability, FreezeCapability, MintCapability};
     use aptos_framework::coins;
@@ -170,6 +171,7 @@ module liquidToken::aptosx {
         // After deposit
         assert!(coin::balance<aptos_coin::AptosCoin>(staker_addr) == 0, 5);
         assert!(coin::balance<AptosXCoin>(staker_addr) == amount, 6);
+        assert!(coin::supply<AptosXCoin>() == option::some((amount as u128)), 7);
 
 
         withdraw(&staker, amount);
@@ -177,6 +179,7 @@ module liquidToken::aptosx {
         // // After withdraw
         assert!(coin::balance<aptos_coin::AptosCoin>(staker_addr) == amount, 8);
         assert!(coin::balance<AptosXCoin>(staker_addr) == 0, 9);
+        assert!(coin::supply<AptosXCoin>() == option::some(0), 10);
 
         coin::destroy_burn_cap(burn_cap);
         coin::destroy_mint_cap(mint_cap);
