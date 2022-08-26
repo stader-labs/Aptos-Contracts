@@ -19,7 +19,7 @@ module liquidToken::aptosx {
         amount: u64,
     }
 
-    // One stake vault for all user
+    // One stake vault for all user, used for recieve Aptoscoin
     struct StakeVault has key, store, drop {
         resource_addr: address,
         signer_cap: account::SignerCapability
@@ -61,7 +61,7 @@ module liquidToken::aptosx {
         });
 
 
-        // create stake_vault resource
+        // Create stake_vault resource
         let (stake_vault, signer_cap) = account::create_resource_account(account, x"01");
         let resource_addr = signer::address_of(&stake_vault);
         coins::register<aptos_coin::AptosCoin>(&stake_vault);
@@ -72,7 +72,7 @@ module liquidToken::aptosx {
         move_to<StakeVault>(account, stake_info);
     }
 
-    public entry fun stake(staker: &signer, amount: u64) acquires UserStakeInfo, Capabilities, StakeVault {
+    public entry fun deposit(staker: &signer, amount: u64) acquires UserStakeInfo, Capabilities, StakeVault {
         let staker_addr = signer::address_of(staker);
 
         
@@ -88,6 +88,8 @@ module liquidToken::aptosx {
         if (!coin::is_account_registered<AptosXCoin>(staker_addr)) {
             coins::register<AptosXCoin>(staker);
         };
+
+        // Transfer AptosCoin to vault
         let stake_info = borrow_global_mut<UserStakeInfo>(staker_addr);
         coin::transfer<aptos_coin::AptosCoin>(staker, resource_addr, amount);
         stake_info.amount = stake_info.amount + amount;
@@ -104,14 +106,16 @@ module liquidToken::aptosx {
         coin::deposit(staker_addr, coins_minted);
     }
 
-    public entry fun unstake(staker: &signer, amount: u64) acquires UserStakeInfo, Capabilities, StakeVault {
+    public entry fun withdraw(staker: &signer, amount: u64) acquires UserStakeInfo, Capabilities, StakeVault {
         let staker_addr = signer::address_of(staker);
         assert!(exists<UserStakeInfo>(staker_addr), EACCOUNT_DOESNT_EXIST);
 
         let stake_info = borrow_global_mut<UserStakeInfo>(staker_addr);
+        assert!(stake_info.amount >= amount, EINVALID_BALANCE);
+        
         stake_info.amount = stake_info.amount - amount;
 
-        // Transfer AptosCoin to user
+        // Transfer AptosCoin to user from vault
         let vault = borrow_global<StakeVault>(@liquidToken);
         let resource_account = account::create_signer_with_capability(&vault.signer_cap);
         coin::transfer<aptos_coin::AptosCoin>(&resource_account, staker_addr, amount);
@@ -161,14 +165,14 @@ module liquidToken::aptosx {
         assert!(coin::balance<aptos_coin::AptosCoin>(staker_addr) == amount, 1);
         assert!(coin::is_account_registered<AptosXCoin>(staker_addr) == false, 3);
 
-        stake(&staker, amount);
+        deposit(&staker, amount);
 
         // After deposit
         assert!(coin::balance<aptos_coin::AptosCoin>(staker_addr) == 0, 5);
         assert!(coin::balance<AptosXCoin>(staker_addr) == amount, 6);
 
 
-        unstake(&staker, amount);
+        withdraw(&staker, amount);
 
         // // After withdraw
         assert!(coin::balance<aptos_coin::AptosCoin>(staker_addr) == amount, 8);
