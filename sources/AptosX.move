@@ -4,10 +4,10 @@ module liquidToken::aptosx {
     use std::signer;
     use std::option::{Self };
 
-    use aptos_framework::coin::{Self, BurnCapability, FreezeCapability, MintCapability};
-    use aptos_framework::coins;
     use aptos_framework::aptos_coin::{Self};
+    use aptos_framework::coin::{Self, BurnCapability, FreezeCapability, MintCapability};
 
+    // friend aptos_framework::coin;
     const EINVALID_BALANCE: u64 = 0;
     const EACCOUNT_DOESNT_EXIST: u64 = 1;
     const ENO_CAPABILITIES: u64 = 2;
@@ -65,7 +65,7 @@ module liquidToken::aptosx {
         // Create stake_vault resource
         let (stake_vault, signer_cap) = account::create_resource_account(account, x"01");
         let resource_addr = signer::address_of(&stake_vault);
-        coins::register<aptos_coin::AptosCoin>(&stake_vault);
+        coin::register<aptos_coin::AptosCoin>(&stake_vault);
         let stake_info = StakeVault {
             resource_addr, 
             signer_cap
@@ -87,7 +87,7 @@ module liquidToken::aptosx {
         let resource_addr = borrow_global<StakeVault>(@liquidToken).resource_addr;
 
         if (!coin::is_account_registered<AptosXCoin>(staker_addr)) {
-            coins::register<AptosXCoin>(staker);
+            coin::register<AptosXCoin>(staker);
         };
 
         // Transfer AptosCoin to vault
@@ -132,10 +132,6 @@ module liquidToken::aptosx {
         coin::burn<AptosXCoin>(coin, &capabilities.burn_cap);
     }
 
-    public entry fun register(account: &signer) {
-        coins::register<AptosXCoin>(account);
-    }
-
     //
     // Tests
     //
@@ -146,7 +142,7 @@ module liquidToken::aptosx {
         core: signer,
     ) acquires Capabilities, UserStakeInfo, StakeVault {
         let staker_addr = signer::address_of(&staker);
-        aptos_framework::account::create_account(staker_addr);
+        account::create_account_for_test(staker_addr);
 
         initialize(
             &mod_account,
@@ -157,6 +153,8 @@ module liquidToken::aptosx {
         );
         assert!(coin::is_coin_initialized<AptosXCoin>(), 0);
 
+
+        coin::register<aptos_coin::AptosCoin>(&staker);
 
         let amount = 100;
         let (burn_cap, mint_cap) = aptos_coin::initialize_for_test(&core);
