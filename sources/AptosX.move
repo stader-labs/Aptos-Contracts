@@ -42,15 +42,13 @@ module liquidToken::aptosx {
 
     public entry fun initialize(
         account: &signer,
-        name: vector<u8>,
-        symbol: vector<u8>,
         decimals: u8,
         monitor_supply: bool,
     ) {
         let (burn_cap, freeze_cap, mint_cap) = coin::initialize<AptosXCoin>(
             account,
-            string::utf8(name),
-            string::utf8(symbol),
+            string::utf8(b"AptosXToken"),
+            string::utf8(b"APTX"),
             decimals,
             monitor_supply,
         );
@@ -146,8 +144,6 @@ module liquidToken::aptosx {
 
         initialize(
             &mod_account,
-            b"AptosX Liquid",
-            b"APTX",
             10,
             true
         );
