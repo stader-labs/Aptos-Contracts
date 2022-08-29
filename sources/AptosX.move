@@ -14,6 +14,7 @@ module liquid_token::aptosx {
     const ENOT_APTOSX_ADDRESS: u64 = 3;
 
 
+    const STAKE_VAULT_SEED: vector<u8> = b"liquid_token::aptosx::stake_vault";
     use aptos_framework::account;
 
     // every user stake have this resource
@@ -70,7 +71,7 @@ module liquid_token::aptosx {
         });
 
         // Create stake_vault resource
-        let (stake_vault, signer_cap) = account::create_resource_account(account, x"01");
+        let (stake_vault, signer_cap) = account::create_resource_account(account, STAKE_VAULT_SEED);
         let resource_addr = signer::address_of(&stake_vault);
         coin::register<aptos_coin::AptosCoin>(&stake_vault);
         let stake_info = StakeVault {
