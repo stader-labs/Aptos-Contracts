@@ -1,16 +1,17 @@
-module liquidToken::aptosx {
+module liquid_token::aptosx {
     use std::string;
     use std::error;
     use std::signer;
-    use std::option::{Self };
+    use std::simple_map;
+    use std::option;
 
     use aptos_framework::aptos_coin::{Self};
     use aptos_framework::coin::{Self, BurnCapability, FreezeCapability, MintCapability};
 
-    // friend aptos_framework::coin;
     const EINVALID_BALANCE: u64 = 0;
     const EACCOUNT_DOESNT_EXIST: u64 = 1;
     const ENO_CAPABILITIES: u64 = 2;
+    const ENOT_APTOSX_ADDRESS: u64 = 3;
 
 
     use aptos_framework::account;
@@ -24,6 +25,10 @@ module liquidToken::aptosx {
     struct StakeVault has key {
         resource_addr: address,
         signer_cap: account::SignerCapability
+    }
+
+    struct ValidatorSet has key {
+        validators: simple_map::SimpleMap<address, bool>,
     }
 
     //
@@ -53,12 +58,16 @@ module liquidToken::aptosx {
             monitor_supply,
         );
 
+        move_to(account, ValidatorSet {
+            validators: simple_map::create<address, bool>(),
+        });
+
+
         move_to(account, Capabilities {
             burn_cap,
             freeze_cap,
             mint_cap,
         });
-
 
         // Create stake_vault resource
         let (stake_vault, signer_cap) = account::create_resource_account(account, x"01");
@@ -69,6 +78,30 @@ module liquidToken::aptosx {
             signer_cap
         };
         move_to<StakeVault>(account, stake_info);
+    }
+
+    public fun is_aptosx_address(addr: address): bool {
+        addr == @liquid_token
+    }
+
+    public entry fun add_validator(account: &signer, validator_address: address) acquires ValidatorSet {
+        assert!(
+            is_aptosx_address(signer::address_of(account)),
+            error::permission_denied(ENOT_APTOSX_ADDRESS),
+        );
+
+        let validator_set = borrow_global_mut<ValidatorSet>(@liquid_token);
+        simple_map::add(&mut validator_set.validators, validator_address, true);
+    }
+
+        public entry fun remove_validator(account: &signer, validator_address: address) acquires ValidatorSet {
+        assert!(
+            is_aptosx_address(signer::address_of(account)),
+            error::permission_denied(ENOT_APTOSX_ADDRESS),
+        );
+        let validator_set = borrow_global_mut<ValidatorSet>(@liquid_token);
+
+        simple_map::remove(&mut validator_set.validators, &validator_address );
     }
 
     public entry fun deposit(staker: &signer, amount: u64) acquires UserStakeInfo, Capabilities, StakeVault {
@@ -82,7 +115,7 @@ module liquidToken::aptosx {
             move_to<UserStakeInfo>(staker, stake_info);
         };
 
-        let resource_addr = borrow_global<StakeVault>(@liquidToken).resource_addr;
+        let resource_addr = borrow_global<StakeVault>(@liquid_token).resource_addr;
 
         if (!coin::is_account_registered<AptosXCoin>(staker_addr)) {
             coin::register<AptosXCoin>(staker);
@@ -95,7 +128,7 @@ module liquidToken::aptosx {
 
 
         // Mint Aptosx
-        let mod_account = @liquidToken;
+        let mod_account = @liquid_token;
         assert!(
             exists<Capabilities>(mod_account),
             error::not_found(ENO_CAPABILITIES),
@@ -115,13 +148,13 @@ module liquidToken::aptosx {
         stake_info.amount = stake_info.amount - amount;
 
         // Transfer AptosCoin to user from vault
-        let vault = borrow_global<StakeVault>(@liquidToken);
+        let vault = borrow_global<StakeVault>(@liquid_token);
         let resource_account = account::create_signer_with_capability(&vault.signer_cap);
         coin::transfer<aptos_coin::AptosCoin>(&resource_account, staker_addr, amount);
 
         // Burn aptosx
         let coin = coin::withdraw<AptosXCoin>(staker, amount);
-        let mod_account = @liquidToken;
+        let mod_account = @liquid_token;
         assert!(
             exists<Capabilities>(mod_account),
             error::not_found(ENO_CAPABILITIES),
@@ -134,7 +167,7 @@ module liquidToken::aptosx {
     // Tests
     //
     #[test(staker = @0xa11ce, mod_account = @0xCAFE, core = @std)]
-    public entry fun test_end_to_end(
+    public entry fun end_to_end_deposit(
         staker: signer,
         mod_account: signer,
         core: signer,
@@ -178,4 +211,55 @@ module liquidToken::aptosx {
         coin::destroy_burn_cap(burn_cap);
         coin::destroy_mint_cap(mint_cap);
     }
+
+    #[test(staker = @0xa11ce, mod_account = @0xCAFE, validator_1 = @0x1001, validator_2 = @0x1002, validator_3 = @0x1003)]
+    public entry fun validators(
+        mod_account: signer,
+        validator_1: address,
+        validator_2: address,
+        ) acquires ValidatorSet {
+        initialize(
+            &mod_account,
+            10,
+            true
+        );
+
+        add_validator(&mod_account, validator_1);
+        add_validator(&mod_account, validator_2);
+        remove_validator(&mod_account, validator_2);
+    }
+
+
+    #[test(mod_account = @0xCAFE, validator_1 = @0x1001)]
+    #[expected_failure]
+    public entry fun remove_validator_not_exist(
+        mod_account: signer,
+        validator_1: address,
+        ) acquires ValidatorSet {
+        initialize(
+            &mod_account,
+            10,
+            true
+        );
+
+        remove_validator(&mod_account, validator_1);
+    }
+
+
+    #[test(mod_account = @0xCAFE, validator_1 = @0x1001)]
+    #[expected_failure]
+    public entry fun remove_validator_twice(
+        mod_account: signer,
+        validator_1: address,
+        ) acquires ValidatorSet {
+        initialize(
+            &mod_account,
+            10,
+            true
+        );
+        add_validator(&mod_account, validator_1);
+        remove_validator(&mod_account, validator_1);
+        remove_validator(&mod_account, validator_1);
+    }
+
 }

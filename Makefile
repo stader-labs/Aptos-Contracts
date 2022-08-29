@@ -1,15 +1,15 @@
 .PHONY: build
 
 Mod = 0xCAFE
-aptos = ./aptos
+aptos = ~/bin/aptos
 
 build: 
-	${aptos} move compile --package-dir ./ --named-addresses liquidToken=${Mod}
+	${aptos} move compile --package-dir ./ --named-addresses liquid_token=${Mod}
 
 .PHONY: test
 test: 
-	${aptos} move test --package-dir ./ --named-addresses liquidToken=${Mod}
+	${aptos} move test --package-dir ./ --named-addresses liquid_token=${Mod}
 
 .PHONY: publish
 publish:
-	${aptos} move publish --named-addresses liquidToken=${Mod}
+	${aptos} move publish --named-addresses liquid_token=${Mod}
