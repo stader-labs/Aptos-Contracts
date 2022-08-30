@@ -49,14 +49,13 @@ module liquid_token::aptosx {
     public entry fun initialize(
         account: &signer,
         decimals: u8,
-        monitor_supply: bool,
     ) {
         let (burn_cap, freeze_cap, mint_cap) = coin::initialize<AptosXCoin>(
             account,
-            string::utf8(b"AptosXToken"),
+            string::utf8(b"AptosX Liquid Token"),
             string::utf8(b"APTX"),
             decimals,
-            monitor_supply,
+            true,
         );
 
         move_to(account, ValidatorSet {
@@ -178,8 +177,7 @@ module liquid_token::aptosx {
 
         initialize(
             &mod_account,
-            10,
-            true
+            10
         );
         assert!(coin::is_coin_initialized<AptosXCoin>(), 0);
 
@@ -221,8 +219,7 @@ module liquid_token::aptosx {
         ) acquires ValidatorSet {
         initialize(
             &mod_account,
-            10,
-            true
+            10
         );
 
         add_validator(&mod_account, validator_1);
@@ -239,8 +236,7 @@ module liquid_token::aptosx {
         ) acquires ValidatorSet {
         initialize(
             &mod_account,
-            10,
-            true
+            10
         );
 
         remove_validator(&mod_account, validator_1);
@@ -255,8 +251,7 @@ module liquid_token::aptosx {
         ) acquires ValidatorSet {
         initialize(
             &mod_account,
-            10,
-            true
+            10
         );
         add_validator(&mod_account, validator_1);
         remove_validator(&mod_account, validator_1);

@@ -8,7 +8,7 @@ build:
 
 .PHONY: test
 test: 
-	${aptos} move test --package-dir ./ --named-addresses liquid_token=${Mod}
+	${aptos} move test --package-dir ./ --named-addresses liquid_token=0xCAFE
 
 .PHONY: publish
 publish:
