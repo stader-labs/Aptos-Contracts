@@ -23,4 +23,5 @@
 
 ## Devnet module:
 
+commit: `6e42279522b0407e68685b5d2c5ba81e58883920`
 https://explorer.devnet.aptos.dev/account/0x833781e93f9b2abf507a113d517290aed99befe1d450cbb15b73c65337292222
