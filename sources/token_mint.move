@@ -1,4 +1,4 @@
-module liquid_token::aptosx {
+module aptosx::token_mint {
     use std::string;
     use std::error;
     use std::signer;
@@ -14,7 +14,7 @@ module liquid_token::aptosx {
     const ENOT_APTOSX_ADDRESS: u64 = 3;
 
 
-    const STAKE_VAULT_SEED: vector<u8> = b"liquid_token::aptosx::stake_vault";
+    const STAKE_VAULT_SEED: vector<u8> = b"aptosx::token_mint::stake_vault";
     use aptos_framework::account;
 
     // every user stake have this resource
@@ -81,7 +81,7 @@ module liquid_token::aptosx {
     }
 
     public fun is_aptosx_address(addr: address): bool {
-        addr == @liquid_token
+        addr == @aptosx
     }
 
     public entry fun add_validator(account: &signer, validator_address: address) acquires ValidatorSet {
@@ -90,7 +90,7 @@ module liquid_token::aptosx {
             error::permission_denied(ENOT_APTOSX_ADDRESS),
         );
 
-        let validator_set = borrow_global_mut<ValidatorSet>(@liquid_token);
+        let validator_set = borrow_global_mut<ValidatorSet>(@aptosx);
         simple_map::add(&mut validator_set.validators, validator_address, true);
     }
 
@@ -99,7 +99,7 @@ module liquid_token::aptosx {
             is_aptosx_address(signer::address_of(account)),
             error::permission_denied(ENOT_APTOSX_ADDRESS),
         );
-        let validator_set = borrow_global_mut<ValidatorSet>(@liquid_token);
+        let validator_set = borrow_global_mut<ValidatorSet>(@aptosx);
 
         simple_map::remove(&mut validator_set.validators, &validator_address );
     }
@@ -115,7 +115,7 @@ module liquid_token::aptosx {
             move_to<UserStakeInfo>(staker, stake_info);
         };
 
-        let resource_addr = borrow_global<StakeVault>(@liquid_token).resource_addr;
+        let resource_addr = borrow_global<StakeVault>(@aptosx).resource_addr;
 
         if (!coin::is_account_registered<AptosXCoin>(staker_addr)) {
             coin::register<AptosXCoin>(staker);
@@ -128,7 +128,7 @@ module liquid_token::aptosx {
 
 
         // Mint Aptosx
-        let mod_account = @liquid_token;
+        let mod_account = @aptosx;
         assert!(
             exists<Capabilities>(mod_account),
             error::not_found(ENO_CAPABILITIES),
@@ -148,13 +148,13 @@ module liquid_token::aptosx {
         stake_info.amount = stake_info.amount - amount;
 
         // Transfer AptosCoin to user from vault
-        let vault = borrow_global<StakeVault>(@liquid_token);
+        let vault = borrow_global<StakeVault>(@aptosx);
         let resource_account = account::create_signer_with_capability(&vault.signer_cap);
         coin::transfer<aptos_coin::AptosCoin>(&resource_account, staker_addr, amount);
 
         // Burn aptosx
         let coin = coin::withdraw<AptosXCoin>(staker, amount);
-        let mod_account = @liquid_token;
+        let mod_account = @aptosx;
         assert!(
             exists<Capabilities>(mod_account),
             error::not_found(ENO_CAPABILITIES),
